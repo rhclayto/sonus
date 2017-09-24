@@ -40,7 +40,7 @@ CloudSpeechRecognizer.startStreaming = (options, audioStream, cloudSpeechRecogni
   recognitionStream.on('error', err => cloudSpeechRecognizer.emit('error', err))
 
 	// Add recognitionStream to the cloudSpeechRecognizer object so it can be shut down from Sonus if the noSingleUtterance option has been passed in.
-	if (options.noSingleUtterance) cloudSpeechRecognizer.recognitionStream = recognitionStream;
+	if (options.noSingleUtterance) cloudSpeechRecognizer.recognitionStream = recognitionStream; 
 
   recognitionStream.on('data', data => {
     if (data) {
