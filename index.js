@@ -32,13 +32,15 @@ CloudSpeechRecognizer.startStreaming = (options, audioStream, cloudSpeechRecogni
       languageCode: options.language,
       speechContexts: options.speechContexts || null
     },
-    singleUtterance: true,
+    singleUtterance: options.noSingleUtterance ? false : true,
     interimResults: true,
     verbose: true
   })
 
   recognitionStream.on('error', err => cloudSpeechRecognizer.emit('error', err))
 
+	// Add recognitionStream to the cloudSpeechRecognizer object so it can be shut down from Sonus if the noSingleUtterance option has been passed in.
+	if (options.noSingleUtterance) cloudSpeechRecognizer.recognitionStream = recognitionStream;
 
   recognitionStream.on('data', data => {
     if (data) {
@@ -96,22 +98,26 @@ Sonus.init = (options, recognizer) => {
 
   csr.on('error', error => sonus.emit('error', { streamingError: error }))
 
-  let transcriptEmpty = true
+  let transcriptEmpty = true;
   csr.on('data', data => {
-    const result = data.results[0]
+    const result = data.results[0];
     if (result) {
-      transcriptEmpty = false
+			// console.log('csr.on result: ', result);
+      transcriptEmpty = false;
       if (result.isFinal) {
-        sonus.emit('final-result', result.transcript)
-        Sonus.annyang.trigger(result.transcript)
-        transcriptEmpty = true //reset transcript
-      } else {
-        sonus.emit('partial-result', result.transcript)
+				sonus.emit('final-result', result.transcript);
+				Sonus.annyang.trigger(result.transcript);
+        transcriptEmpty = true; //reset transcript
       }
-    } else if (data.speechEventType === 'END_OF_SINGLE_UTTERANCE' && transcriptEmpty) {
-      sonus.emit('final-result', "")
-    } else if (data.error) {
-      sonus.emit('error', data.error)
+			else {
+        sonus.emit('partial-result', result.transcript);
+      }
+    }
+		else if (data.speechEventType === 'END_OF_SINGLE_UTTERANCE' && transcriptEmpty) {
+      sonus.emit('final-result', "");
+    }
+		else if (data.error) {
+      sonus.emit('error', data.error);
     }
   })
 
@@ -120,6 +126,11 @@ Sonus.init = (options, recognizer) => {
       try {
         let triggerHotword = (index == 0) ? hotword : models.lookup(index)
         sonus.emit('hotword', index, triggerHotword)
+				// If trigger hotword is 'FreeDescription', set an option to send to CloudSpeechRecognizer so that it will start a stream with singleUtterance: false, & we'll handle our own silence detection & recognitionStream teardown.
+				if (triggerHotword === 'FreeDescription') {
+					opts.noSingleUtterance = true;
+					
+				}
         CloudSpeechRecognizer.startStreaming(opts, sonus.mic, csr)
       } catch (e) {
         throw ERROR.INVALID_INDEX
@@ -128,6 +139,17 @@ Sonus.init = (options, recognizer) => {
       throw ERROR.NOT_STARTED
     }
   }
+	
+	// Add a sonus.on to receive events from an instantiated sonus in order to shut down a recognitionStream.
+	sonus.on('recognitionStreamShutdown', function() {
+		// recognitionStream will be made available on the csr object, so we can shut it down as follows:
+		if (csr.listening && csr.recognitionStream) {
+			csr.listening = false;
+			sonus.mic.unpipe(csr.recognitionStream);
+			csr.recognitionStream.end();
+			delete csr.recognitionStream; // Is this necessary?
+		}
+	});
 
   return sonus
 }
