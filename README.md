@@ -7,7 +7,7 @@
 <a href='https://dependencyci.com/github/evancohen/sonus'><img src='https://dependencyci.com/github/evancohen/sonus/badge' alt='Dependency Status'/></a>
 </p>
 <p align="center">
-<strong>This project is in active development and is rapidly evolving.  As of <code>v0.1.0</code> it uses semantic versioning.</strong>
+<strong>Forked.</strong>
 </p>
 
 Sonus is a speech to text library you can use to quickly and easally add a VUI (Voice User Interface) to any hardware or software project. Just like Alexa, Google Now, and Siri, Sonus is always listening offline for a *customizable* hotword. Once that hotword is detected your speech is streamed to the cloud recognition service of your choice - then you get the results.
